@@ -168,3 +168,4 @@ This project has adopted the [Microsoft Open Source Code of Conduct](https://ope
 For more information see the [Code of Conduct FAQ](https://opensource.microsoft.com/codeofconduct/faq/) or
 contact [opencode@microsoft.com](mailto:opencode@microsoft.com) with any additional questions or comments.
 Test değişikliği - Thu Aug  7 18:40:03 +03 2025
+# Auto-trigger test - Thu Aug  7 18:49:00 +03 2025

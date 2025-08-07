@@ -3,6 +3,13 @@ pipeline {
         label 'k3s-master' // Jenkins agent'ının k3s-master VM'inde çalışmasını sağlar
     }
 
+    triggers {
+        // GitHub push tetiklemesi
+        githubPush()
+        // SCM polling - her 2 dakikada bir kontrol
+        pollSCM('H/2 * * * *')
+    }
+
     environment {
         DOCKER_REGISTRY_CREDENTIALS_ID = 'dockerhub-credentials' // Jenkins'e eklediğiniz Docker Registry kimlik bilgilerinin ID'si
         KUBECONFIG_CREDENTIALS_ID = 'k3s-kubeconfig' // Jenkins'e eklediğiniz kubeconfig dosyasının ID'si
