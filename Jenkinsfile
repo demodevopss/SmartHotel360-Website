@@ -4,7 +4,7 @@ pipeline {
     }
 
     environment {
-        DOCKER_REGISTRY_CREDENTIALS_ID = 'YOUR_DOCKER_REGISTRY_CREDENTIALS_ID' // Jenkins'e eklediğiniz Docker Registry kimlik bilgilerinin ID'si
+        DOCKER_REGISTRY_CREDENTIALS_ID = 'dockerhub-credentials' // Jenkins'e eklediğiniz Docker Registry kimlik bilgilerinin ID'si
         KUBECONFIG_CREDENTIALS_ID = 'k3s-kubeconfig' // Jenkins'e eklediğiniz kubeconfig dosyasının ID'si
         DOCKER_IMAGE_NAME = 'devopsserdar/smarthotel360-website' // Kendi Docker Registry kullanıcı adınızı kullanın
         KUBERNETES_NAMESPACE = 'default' // Uygulamanın dağıtılacağı Kubernetes namespace'i
@@ -13,7 +13,7 @@ pipeline {
     stages {
         stage('Checkout Source Code') {
             steps {
-                git branch: 'master', credentialsId: 'YOUR_GITHUB_CREDENTIALS_ID', url: 'https://github.com/demodevopss/SmartHotel360-Website.git'
+                git branch: 'master', credentialsId: 'github-credentials', url: 'https://github.com/demodevopss/SmartHotel360-Website.git'
             }
         }
 
