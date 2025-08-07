@@ -9,7 +9,7 @@
     "jquery": "^3.3.1",
     "moment": "^2.22.2",
     "msal": "0.1.1",
-    "node-sass-chokidar": "^1.3.3",
+    "sass": "^1.77.0",
     "npm-run-all": "^4.1.3",
     "rc-slider": "^8.3.1",
     "react": "^16.0.0",
@@ -30,8 +30,8 @@
     "tslib": "^1.9.3"
   },
   "scripts": {
-    "build-css": "node-sass-chokidar src/ -o src/",
-    "watch-css": "npm run build-css && node-sass-chokidar src/ -o src/ --watch --recursive",
+    "build-css": "sass src/:src/ --no-source-map",
+    "watch-css": "npm run build-css && sass src/:src/ --watch --no-source-map",
     "start-js": "rimraf ./build && react-scripts start",
     "start": "npm-run-all -p watch-css start-js",
     "build-js": "react-scripts build",

@@ -12,11 +12,12 @@ RUN dotnet build -c Release -o /webapp
 
 
 FROM arm64v8/node:20-alpine as node
+# Install Python and build dependencies for node-sass
+RUN apk add --no-cache python3 make g++ py3-pip
 WORKDIR /src
 COPY . .
 WORKDIR /src/ClientApp
 RUN npm install --legacy-peer-deps
-RUN npm rebuild node-sass
 RUN npm run build
 RUN cp -r build/* /src/wwwroot
 
