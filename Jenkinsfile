@@ -309,13 +309,25 @@ spec:
     spec:
       containers:
       - name: smarthotel-website
-        image: ${DOCKER_IMAGE_NAME}:latest
+        image: ${DOCKER_IMAGE_NAME}:${env.BUILD_NUMBER}
         imagePullPolicy: Always
         env:
         - name: ASPNETCORE_URLS
           value: "http://0.0.0.0:8080"
         ports:
         - containerPort: 8080
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 8080
+          initialDelaySeconds: 10
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 8080
+          initialDelaySeconds: 5
+          periodSeconds: 5
 """
                         // Kubernetes Service YAML içeriği (NodePort olarak ayarlandı)
                         def serviceYaml = """
@@ -331,8 +343,7 @@ spec:
     - protocol: TCP
       port: 80
       targetPort: 8080
-      nodePort: 30080
-  type: NodePort
+  type: ClusterIP
 """
                         // Geçici YAML dosyaları oluştur ve uygula
                         writeFile file: 'deployment.yaml', text: deploymentYaml
@@ -344,10 +355,8 @@ spec:
                         // Rollout sağlık kontrolü ve hata durumunda log toplama
                         try {
                             sh "KUBECONFIG=${KUBECONFIG_FILE} kubectl rollout status deploy/smarthotel-website -n ${KUBERNETES_NAMESPACE} --timeout=180s | cat"
-                            sh "KUBECONFIG=${KUBECONFIG_FILE} kubectl get deploy,po,svc -n ${KUBERNETES_NAMESPACE} -o wide | cat"
-                            // NodePort erişim bilgisi
-                            sh "KUBECONFIG=${KUBECONFIG_FILE} kubectl get nodes -o wide -n ${KUBERNETES_NAMESPACE} | cat"
-                            echo "Uygulama NodePort ile erişilebilir: http://<NODE_IP>:30080"
+                        sh "KUBECONFIG=${KUBECONFIG_FILE} kubectl get deploy,po,svc -n ${KUBERNETES_NAMESPACE} -o wide | cat"
+                        echo "Uygulama Service (ClusterIP) ile cluster içinde erişilebilir: http://smarthotel-website-service.${KUBERNETES_NAMESPACE}.svc.cluster.local"
                         } catch (err) {
                             echo "Rollout başarısız oldu. Pod günlükleri toplanıyor..."
                             sh '''
