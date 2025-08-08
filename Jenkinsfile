@@ -45,6 +45,96 @@ pipeline {
             }
         }
 
+        stage('Selenium Tests') {
+            steps {
+                script {
+                    // Deploy edilmeden önce testleri çalıştır
+                    try {
+                        // Selenium Grid'i başlat
+                        sh '''
+                        cd selenium-tests
+                        docker-compose -f docker-compose.selenium.yml up -d
+                        echo "Selenium Grid starting, waiting 30 seconds..."
+                        sleep 30
+                        '''
+                        
+                        // Test için Docker container'ı geçici olarak çalıştır
+                        sh """
+                        echo "Starting test container..."
+                        docker run -d --name smarthotel-test-${env.BUILD_NUMBER} \\
+                            -p 8080:80 \\
+                            --network selenium-tests_selenium-network \\
+                            ${DOCKER_IMAGE_NAME}:${env.BUILD_NUMBER}
+                        
+                        # Container'ın hazır olmasını bekle
+                        sleep 15
+                        """
+                        
+                        // Test URL'i container IP'si
+                        def testUrl = "http://smarthotel-test-${env.BUILD_NUMBER}:80"
+                        
+                        // Selenium testlerini çalıştır
+                        sh """
+                        cd selenium-tests
+                        python3 -m venv test-venv
+                        source test-venv/bin/activate
+                        pip install -r requirements.txt
+                        
+                        # Test çalıştır
+                        python run_tests.py \\
+                            --app-url ${testUrl} \\
+                            --selenium-hub http://localhost:4444/wd/hub \\
+                            --browser chrome \\
+                            --headless \\
+                            --pytest-args "--html=reports/selenium-report.html --self-contained-html --junitxml=reports/selenium-junit.xml -v"
+                        """
+                        
+                        echo "✓ Selenium tests passed - proceeding with deployment"
+                        
+                    } catch (Exception e) {
+                        echo "✗ Selenium tests failed: ${e.getMessage()}"
+                        echo "Deployment will be skipped due to test failures"
+                        currentBuild.result = 'FAILURE'
+                        error "Selenium tests failed - stopping pipeline"
+                    } finally {
+                        // Test container'ı temizle
+                        sh """
+                        docker stop smarthotel-test-${env.BUILD_NUMBER} || true
+                        docker rm smarthotel-test-${env.BUILD_NUMBER} || true
+                        """
+                        
+                        // Selenium Grid'i durdur
+                        sh '''
+                        cd selenium-tests
+                        docker-compose -f docker-compose.selenium.yml down || true
+                        '''
+                        
+                        // Test raporlarını arşivle
+                        script {
+                            if (fileExists('selenium-tests/reports/selenium-report.html')) {
+                                publishHTML([
+                                    allowMissing: false,
+                                    alwaysLinkToLastBuild: true,
+                                    keepAll: true,
+                                    reportDir: 'selenium-tests/reports',
+                                    reportFiles: 'selenium-report.html',
+                                    reportName: 'Selenium Test Report',
+                                    reportTitles: 'SmartHotel360 E2E Tests'
+                                ])
+                            }
+                            
+                            if (fileExists('selenium-tests/reports/selenium-junit.xml')) {
+                                junit 'selenium-tests/reports/selenium-junit.xml'
+                            }
+                        }
+                        
+                        // Test artifact'lerini arşivle
+                        archiveArtifacts artifacts: 'selenium-tests/reports/**', allowEmptyArchive: true
+                    }
+                }
+            }
+        }
+
         stage('Deploy to Kubernetes') {
             steps {
                 script {
@@ -118,82 +208,6 @@ spec:
                             '''
                             error "Deploy rollout başarısız"
                         }
-                    }
-                }
-            }
-        }
-
-        stage('Selenium Tests') {
-            steps {
-                script {
-                    // Selenium testlerini çalıştır
-                    try {
-                        // Selenium Grid'i başlat
-                        sh '''
-                        cd selenium-tests
-                        docker-compose -f docker-compose.selenium.yml up -d
-                        echo "Selenium Grid starting, waiting 30 seconds..."
-                        sleep 30
-                        '''
-                        
-                        // Test environment bilgilerini al
-                        def nodeIP = sh(
-                            script: "KUBECONFIG=${KUBECONFIG_FILE} kubectl get nodes -o jsonpath='{.items[0].status.addresses[?(@.type==\"InternalIP\")].address}' -n ${KUBERNETES_NAMESPACE}",
-                            returnStdout: true
-                        ).trim()
-                        
-                        def appUrl = "http://${nodeIP}:30080"
-                        
-                        // Selenium testlerini çalıştır
-                        sh """
-                        cd selenium-tests
-                        python3 -m venv test-venv
-                        source test-venv/bin/activate
-                        pip install -r requirements.txt
-                        
-                        # Test çalıştır
-                        python run_tests.py \\
-                            --app-url ${appUrl} \\
-                            --selenium-hub http://localhost:4444/wd/hub \\
-                            --browser chrome \\
-                            --headless \\
-                            --pytest-args "--html=reports/selenium-report.html --self-contained-html --junitxml=reports/selenium-junit.xml -v"
-                        """
-                        
-                        echo "✓ Selenium tests completed successfully"
-                        
-                    } catch (Exception e) {
-                        echo "⚠ Selenium tests failed: ${e.getMessage()}"
-                        // Test başarısız olsa da pipeline devam etsin (isteğe bağlı)
-                        currentBuild.result = 'UNSTABLE'
-                    } finally {
-                        // Selenium Grid'i durdur
-                        sh '''
-                        cd selenium-tests
-                        docker-compose -f docker-compose.selenium.yml down || true
-                        '''
-                        
-                        // Test raporlarını arşivle
-                        script {
-                            if (fileExists('selenium-tests/reports/selenium-report.html')) {
-                                publishHTML([
-                                    allowMissing: false,
-                                    alwaysLinkToLastBuild: true,
-                                    keepAll: true,
-                                    reportDir: 'selenium-tests/reports',
-                                    reportFiles: 'selenium-report.html',
-                                    reportName: 'Selenium Test Report',
-                                    reportTitles: 'SmartHotel360 E2E Tests'
-                                ])
-                            }
-                            
-                            if (fileExists('selenium-tests/reports/selenium-junit.xml')) {
-                                junit 'selenium-tests/reports/selenium-junit.xml'
-                            }
-                        }
-                        
-                        // Test artifact'lerini arşivle
-                        archiveArtifacts artifacts: 'selenium-tests/reports/**', allowEmptyArchive: true
                     }
                 }
             }
