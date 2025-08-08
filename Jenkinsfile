@@ -197,7 +197,18 @@ pipeline {
                         
                         # Final network connectivity test
                         echo "Testing container network connectivity..."
-                        curl -I http://localhost:8080/ || echo "⚠ Health check failed, but continuing..."
+                        if ! curl -I http://localhost:8080/; then
+                            echo "⚠ Health check failed! Checking container logs..."
+                            echo "=== Container Logs (last 50 lines) ==="
+                            docker logs --tail 50 smarthotel-test-${env.BUILD_NUMBER} || true
+                            echo "=== Container Process List ==="
+                            docker exec smarthotel-test-${env.BUILD_NUMBER} ps aux || true
+                            echo "=== Container Port Check ==="
+                            docker exec smarthotel-test-${env.BUILD_NUMBER} netstat -tuln || true
+                            echo "⚠ Continuing with tests despite health check failure..."
+                        else
+                            echo "✅ Health check passed!"
+                        fi
                         """
                         
                         // Test URL'i container IP'si
