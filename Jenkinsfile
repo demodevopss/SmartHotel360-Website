@@ -77,7 +77,7 @@ pipeline {
                         sh """
                         cd selenium-tests
                         python3 -m venv test-venv
-                        source test-venv/bin/activate
+                        . test-venv/bin/activate
                         pip install -r requirements.txt
                         
                         # Test çalıştır
