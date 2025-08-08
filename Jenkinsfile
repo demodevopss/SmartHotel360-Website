@@ -78,16 +78,23 @@ pipeline {
                         echo "Checking container network..."
                         docker inspect smarthotel-test-${env.BUILD_NUMBER} --format='{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' || true
                         
-                        # Container'ın hazır olmasını bekle ve health check
+                        # Container'ın hazır olmasını bekle ve health check  
                         echo "Waiting for application to be ready..."
-                        for i in {1..12}; do
-                            if docker exec smarthotel-test-${env.BUILD_NUMBER} curl -f http://localhost:80/ >/dev/null 2>&1; then
+                        i=1
+                        while [ \$i -le 12 ]; do
+                            # Host'tan container'a health check
+                            if curl -f http://localhost:8080/ >/dev/null 2>&1; then
                                 echo "✓ Application is ready after \$((i * 5)) seconds"
                                 break
                             fi
-                            echo "⏳ Waiting for app readiness... \$((i * 5))s"
+                            echo "⏳ Waiting for app readiness... \$((i * 5))s (attempt \$i/12)"
                             sleep 5
+                            i=\$((i + 1))
                         done
+                        
+                        # Final network connectivity test
+                        echo "Testing container network connectivity..."
+                        curl -I http://localhost:8080/ || echo "⚠ Health check failed, but continuing..."
                         """
                         
                         // Test URL'i container IP'si
