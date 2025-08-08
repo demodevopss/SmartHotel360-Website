@@ -213,4 +213,62 @@ spec:
             }
         }
     }
+    
+    post {
+        always {
+            script {
+                echo "🧹 Pipeline cleanup başlıyor..."
+                
+                // Docker temizligi
+                sh '''
+                echo "Kullanılmayan Docker image'larını temizliyorum..."
+                docker image prune -f || true
+                docker container prune -f || true
+                docker volume prune -f || true
+                docker network prune -f || true
+                
+                echo "Dangling image'ları temizliyorum..."
+                docker rmi $(docker images -f "dangling=true" -q) || true
+                
+                echo "7 günden eski image'ları temizliyorum..."
+                docker image prune -a --filter "until=168h" -f || true
+                '''
+                
+                // Workspace temizligi
+                sh '''
+                echo "Workspace cache temizliyorum..."
+                find . -name "node_modules" -type d -exec rm -rf {} + || true
+                find . -name "*.log" -type f -delete || true
+                find . -name "*.tmp" -type f -delete || true
+                '''
+                
+                // Test artifacts temizligi
+                sh '''
+                echo "Test dosyalarını temizliyorum..."
+                rm -rf selenium-tests/test-venv || true
+                rm -rf selenium-tests/reports/*.png || true
+                find . -name "__pycache__" -type d -exec rm -rf {} + || true
+                '''
+                
+                // Disk durumu raporu
+                sh '''
+                echo "📊 Temizlik sonrası disk durumu:"
+                df -h / || true
+                echo "🐳 Docker disk kullanımı:"
+                docker system df || true
+                '''
+                
+                echo "✅ Pipeline cleanup tamamlandı!"
+            }
+        }
+        success {
+            echo "🎉 Pipeline başarılı - Uygulama deploy edildi!"
+        }
+        failure {
+            echo "❌ Pipeline başarısız - Deployment yapılmadı!"
+        }
+        unstable {
+            echo "⚠️ Pipeline kararsız - Testlerde problem var!"
+        }
+    }
 }
