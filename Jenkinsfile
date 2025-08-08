@@ -154,7 +154,8 @@ pipeline {
                         # Wait for Selenium Hub to be ready (POSIX compatible)
                         i=1
                         while [ \$i -le 36 ]; do
-                            if curl -s http://localhost:4444/status | grep -q '"ready"\s*:\s*true'; then
+                            # Use POSIX character class for whitespace to avoid Groovy escaping issues
+                            if curl -s http://localhost:4444/status | grep -Eq '"ready"[[:space:]]*:[[:space:]]*true'; then
                                 echo "✓ Selenium Hub ready after \$((i * 5)) seconds"
                                 break
                             fi
