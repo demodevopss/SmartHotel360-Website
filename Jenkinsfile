@@ -131,17 +131,9 @@ pipeline {
                         // Archive security reports
                         archiveArtifacts artifacts: 'security-reports/**', allowEmptyArchive: true
                         
-                        // Publish HTML report
+                        // HTML Publisher plugin yoksa publishHTML kullanılamaz; sadece arşivle
                         if (fileExists('security-reports/trivy-report.html')) {
-                            publishHTML([
-                                allowMissing: false,
-                                alwaysLinkToLastBuild: true,
-                                keepAll: true,
-                                reportDir: 'security-reports',
-                                reportFiles: 'trivy-report.html',
-                                reportName: 'Trivy Security Report',
-                                reportTitles: 'Container Security Scan Results'
-                            ])
+                            echo "HTML report available at security-reports/trivy-report.html (install HTML Publisher plugin to render in UI)"
                         }
                     }
                 }
@@ -279,15 +271,7 @@ pipeline {
                         // Test raporlarını arşivle
                         script {
                             if (fileExists('selenium-tests/reports/selenium-report.html')) {
-                                publishHTML([
-                                    allowMissing: false,
-                                    alwaysLinkToLastBuild: true,
-                                    keepAll: true,
-                                    reportDir: 'selenium-tests/reports',
-                                    reportFiles: 'selenium-report.html',
-                                    reportName: 'Selenium Test Report',
-                                    reportTitles: 'SmartHotel360 E2E Tests'
-                                ])
+                                echo "HTML report available at selenium-tests/reports/selenium-report.html (install HTML Publisher plugin to render in UI)"
                             }
                             
                             if (fileExists('selenium-tests/reports/selenium-junit.xml')) {
