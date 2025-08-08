@@ -167,6 +167,7 @@ pipeline {
                         docker run -d --name smarthotel-test-${env.BUILD_NUMBER} \\
                             -p 8080:8080 \\
                             --network selenium-tests_selenium-network \\
+                            -e ASPNETCORE_URLS="http://0.0.0.0:8080" \\
                             ${DOCKER_IMAGE_NAME}:${env.BUILD_NUMBER}
                         
                         # Container'ın başlatılmasını bekle
@@ -209,6 +210,12 @@ pipeline {
                         else
                             echo "✅ Health check passed!"
                         fi
+                        
+                        # Test inter-container connectivity on same network
+                        echo "🔍 Testing container-to-container network connectivity..."
+                        docker run --rm --network selenium-tests_selenium-network \\
+                            alpine/curl:latest curl -I http://smarthotel-test-${env.BUILD_NUMBER}:8080/ || \\
+                            echo "⚠ Container-to-container connectivity failed"
                         """
                         
                         // Test URL'i container IP'si
@@ -302,6 +309,9 @@ spec:
       - name: smarthotel-website
         image: ${DOCKER_IMAGE_NAME}:latest
         imagePullPolicy: Always
+        env:
+        - name: ASPNETCORE_URLS
+          value: "http://0.0.0.0:8080"
         ports:
         - containerPort: 8080
 """
