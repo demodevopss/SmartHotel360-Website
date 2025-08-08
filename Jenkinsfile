@@ -45,6 +45,109 @@ pipeline {
             }
         }
 
+        stage('Security Scan - Trivy') {
+            steps {
+                script {
+                    try {
+                        // Trivy ile Docker kullanarak scan
+                        echo "🔍 Preparing Trivy security scan..."
+                        sh 'docker pull aquasec/trivy:latest'
+                        
+                        // Reports dizinini oluştur
+                        sh 'mkdir -p security-reports'
+                        
+                        // Trivy vulnerability scan (Docker kullanarak)
+                        sh """
+                        echo "🔍 Running Trivy vulnerability scan..."
+                        docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \\
+                            -v \$(pwd)/security-reports:/tmp/security-reports \\
+                            aquasec/trivy:latest image \\
+                            --format table --output /tmp/security-reports/trivy-vulnerabilities.txt \\
+                            ${DOCKER_IMAGE_NAME}:${env.BUILD_NUMBER}
+                        
+                        echo "📊 Generating Trivy JSON report..."
+                        docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \\
+                            -v \$(pwd)/security-reports:/tmp/security-reports \\
+                            aquasec/trivy:latest image \\
+                            --format json --output /tmp/security-reports/trivy-report.json \\
+                            ${DOCKER_IMAGE_NAME}:${env.BUILD_NUMBER}
+                        
+                        echo "🎯 Generating Trivy SARIF report (for GitHub integration)..."
+                        docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \\
+                            -v \$(pwd)/security-reports:/tmp/security-reports \\
+                            aquasec/trivy:latest image \\
+                            --format sarif --output /tmp/security-reports/trivy-results.sarif \\
+                            ${DOCKER_IMAGE_NAME}:${env.BUILD_NUMBER}
+                        
+                        echo "⚠️ Checking for HIGH and CRITICAL vulnerabilities..."
+                        docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \\
+                            aquasec/trivy:latest image \\
+                            --severity HIGH,CRITICAL --format table \\
+                            ${DOCKER_IMAGE_NAME}:${env.BUILD_NUMBER}
+                        """
+                        
+                        // Basit vulnerability count check (JSON'dan)
+                        def trivyExitCode = sh(
+                            script: """
+                            docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \\
+                                aquasec/trivy:latest image \\
+                                --severity CRITICAL --exit-code 1 --quiet \\
+                                ${DOCKER_IMAGE_NAME}:${env.BUILD_NUMBER}
+                            """,
+                            returnStatus: true
+                        )
+                        
+                        def trivyHighExitCode = sh(
+                            script: """
+                            docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \\
+                                aquasec/trivy:latest image \\
+                                --severity HIGH,CRITICAL --exit-code 1 --quiet \\
+                                ${DOCKER_IMAGE_NAME}:${env.BUILD_NUMBER}
+                            """,
+                            returnStatus: true
+                        )
+                        
+                        echo "🔢 Security Scan Results:"
+                        echo "   CRITICAL exit code: ${trivyExitCode}"
+                        echo "   HIGH+CRITICAL exit code: ${trivyHighExitCode}"
+                        
+                        // Security policy: Fail if CRITICAL vulnerabilities found
+                        if (trivyExitCode != 0) {
+                            echo "❌ CRITICAL vulnerabilities found! Failing the pipeline."
+                            error("Security scan failed: CRITICAL vulnerabilities detected")
+                        } else if (trivyHighExitCode != 0) {
+                            echo "⚠️ HIGH vulnerabilities found. Consider reviewing."
+                            echo "Pipeline continues but marked as UNSTABLE."
+                            currentBuild.result = 'UNSTABLE'
+                        } else {
+                            echo "✅ Security scan passed!"
+                        }
+                        
+                    } catch (Exception e) {
+                        echo "⚠️ Trivy scan failed: ${e.getMessage()}"
+                        echo "Continuing pipeline but marking as unstable..."
+                        currentBuild.result = 'UNSTABLE'
+                    } finally {
+                        // Archive security reports
+                        archiveArtifacts artifacts: 'security-reports/**', allowEmptyArchive: true
+                        
+                        // Publish HTML report
+                        if (fileExists('security-reports/trivy-report.html')) {
+                            publishHTML([
+                                allowMissing: false,
+                                alwaysLinkToLastBuild: true,
+                                keepAll: true,
+                                reportDir: 'security-reports',
+                                reportFiles: 'trivy-report.html',
+                                reportName: 'Trivy Security Report',
+                                reportTitles: 'Container Security Scan Results'
+                            ])
+                        }
+                    }
+                }
+            }
+        }
+
         stage('Selenium Tests') {
             steps {
                 script {
@@ -275,6 +378,8 @@ spec:
                 echo "Test dosyalarını temizliyorum..."
                 rm -rf selenium-tests/test-venv || true
                 rm -rf selenium-tests/reports/*.png || true
+                rm -rf security-reports/*.json || true
+                rm -rf security-reports/*.sarif || true
                 find . -name "__pycache__" -type d -exec rm -rf {} + || true
                 '''
                 
