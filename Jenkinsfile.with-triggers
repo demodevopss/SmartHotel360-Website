@@ -3,6 +3,12 @@ pipeline {
         label 'k3s-master' // Jenkins agent'ının k3s-master VM'inde çalışmasını sağlar
     }
 
+    triggers {
+        // GitHub push tetiklemesi
+        githubPush()
+        // SCM polling - her 2 dakikada bir kontrol
+        pollSCM('H/2 * * * *')
+    }
 
     environment {
         DOCKER_REGISTRY_CREDENTIALS_ID = 'dockerhub-credentials' // Jenkins'e eklediğiniz Docker Registry kimlik bilgilerinin ID'si
@@ -97,7 +103,6 @@ spec:
                         try {
                             sh "KUBECONFIG=${KUBECONFIG_FILE} kubectl rollout status deploy/smarthotel-website -n ${KUBERNETES_NAMESPACE} --timeout=180s | cat"
                             sh "KUBECONFIG=${KUBECONFIG_FILE} kubectl get deploy,po,svc -n ${KUBERNETES_NAMESPACE} -o wide | cat"
-                            // NodePort erişim bilgisi
                             sh "KUBECONFIG=${KUBECONFIG_FILE} kubectl get nodes -o wide -n ${KUBERNETES_NAMESPACE} | cat"
                             echo "Uygulama NodePort ile erişilebilir: http://<NODE_IP>:30080"
                         } catch (err) {
