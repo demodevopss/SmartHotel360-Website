@@ -157,8 +157,22 @@ pipeline {
                         sh '''
                         cd selenium-tests
                         docker-compose -f docker-compose.selenium.yml up -d
-                        echo "Selenium Grid starting, waiting 30 seconds..."
-                        sleep 30
+                        echo "Selenium Grid starting, waiting for hub to be ready..."
+                        
+                        # Wait for Selenium Hub to be ready (POSIX compatible)
+                        i=1
+                        while [ \$i -le 20 ]; do
+                            if curl -s http://localhost:4444/wd/hub/status >/dev/null; then
+                                echo "✓ Selenium Hub ready after \$((i * 5)) seconds"
+                                break
+                            fi
+                            echo "⏳ Waiting for Selenium Hub... \$((i * 5))s"
+                            sleep 5
+                            i=\$((i + 1))
+                        done
+                        
+                        # Show final grid status
+                        curl -s http://localhost:4444/wd/hub/status | head -5 || echo "Hub status check failed"
                         '''
                         
                         // Test için Docker container'ı geçici olarak çalıştır
