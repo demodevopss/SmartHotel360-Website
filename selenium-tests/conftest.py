@@ -4,6 +4,10 @@ from selenium import webdriver
 from selenium.webdriver.chrome.options import Options as ChromeOptions
 from selenium.webdriver.firefox.options import Options as FirefoxOptions
 from selenium.webdriver.common.desired_capabilities import DesiredCapabilities
+from selenium.webdriver.chrome.service import Service as ChromeService
+from selenium.webdriver.firefox.service import Service as FirefoxService
+from webdriver_manager.chrome import ChromeDriverManager
+from webdriver_manager.firefox import GeckoDriverManager
 
 
 @pytest.fixture(scope="session")
@@ -36,8 +40,8 @@ def driver_init(request):
             )
         except Exception as e:
             print(f"Selenium Grid not available: {e}")
-            print("Falling back to local ChromeDriver")
-            driver = webdriver.Chrome(options=chrome_options)
+            print("Falling back to local ChromeDriver (webdriver-manager)")
+            driver = webdriver.Chrome(service=ChromeService(ChromeDriverManager().install()), options=chrome_options)
             
     elif browser == 'firefox':
         firefox_options = FirefoxOptions()
@@ -51,8 +55,8 @@ def driver_init(request):
             )
         except Exception as e:
             print(f"Selenium Grid not available: {e}")
-            print("Falling back to local GeckoDriver")
-            driver = webdriver.Firefox(options=firefox_options)
+            print("Falling back to local GeckoDriver (webdriver-manager)")
+            driver = webdriver.Firefox(service=FirefoxService(GeckoDriverManager().install()), options=firefox_options)
     else:
         raise ValueError(f"Unsupported browser: {browser}")
     
