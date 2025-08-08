@@ -153,8 +153,8 @@ pipeline {
                         
                         # Wait for Selenium Hub to be ready (POSIX compatible)
                         i=1
-                        while [ \$i -le 20 ]; do
-                            if curl -s http://localhost:4444/wd/hub/status >/dev/null; then
+                        while [ \$i -le 36 ]; do
+                            if curl -s http://localhost:4444/status | grep -q '"ready"\s*:\s*true'; then
                                 echo "✓ Selenium Hub ready after \$((i * 5)) seconds"
                                 break
                             fi
@@ -163,8 +163,13 @@ pipeline {
                             i=\$((i + 1))
                         done
                         
+                        echo "Selenium containers:"
+                        docker ps | grep selenium || true
+                        echo "Selenium Hub logs (last 50 lines):"
+                        docker logs --tail 50 selenium-hub || true
+                        
                         # Show final grid status
-                        curl -s http://localhost:4444/wd/hub/status | head -5 || echo "Hub status check failed"
+                        curl -s http://localhost:4444/status | head -20 || echo "Hub status check failed"
                         '''
                         
                         // Test için Docker container'ı geçici olarak çalıştır
@@ -241,7 +246,7 @@ pipeline {
                         # Test çalıştır - timeout artırıldı ve debug eklendi
                         python run_tests.py \\
                             --app-url ${testUrl} \\
-                            --selenium-hub http://localhost:4444/wd/hub \\
+                            --selenium-hub http://localhost:4444 \\
                             --browser chrome \\
                             --headless \\
                             --app-timeout 120 \\
