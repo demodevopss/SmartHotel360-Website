@@ -165,7 +165,7 @@ pipeline {
                         sh """
                         echo "Starting test container..."
                         docker run -d --name smarthotel-test-${env.BUILD_NUMBER} \\
-                            -p 8080:80 \\
+                            -p 8080:8080 \\
                             --network selenium-tests_selenium-network \\
                             ${DOCKER_IMAGE_NAME}:${env.BUILD_NUMBER}
                         
@@ -212,7 +212,7 @@ pipeline {
                         """
                         
                         // Test URL'i container IP'si
-                        def testUrl = "http://smarthotel-test-${env.BUILD_NUMBER}:80"
+                        def testUrl = "http://smarthotel-test-${env.BUILD_NUMBER}:8080"
                         
                         // Selenium testlerini çalıştır
                         sh """
@@ -303,7 +303,7 @@ spec:
         image: ${DOCKER_IMAGE_NAME}:latest
         imagePullPolicy: Always
         ports:
-        - containerPort: 80
+        - containerPort: 8080
 """
                         // Kubernetes Service YAML içeriği (NodePort olarak ayarlandı)
                         def serviceYaml = """
@@ -318,7 +318,7 @@ spec:
   ports:
     - protocol: TCP
       port: 80
-      targetPort: 80
+      targetPort: 8080
       nodePort: 30080
   type: NodePort
 """
