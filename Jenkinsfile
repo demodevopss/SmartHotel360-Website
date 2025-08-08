@@ -218,8 +218,12 @@ pipeline {
                             echo "⚠ Container-to-container connectivity failed"
                         """
                         
-                        // Test URL'i container IP'si
-                        def testUrl = "http://smarthotel-test-${env.BUILD_NUMBER}:8080"
+                        // Test URL'i container IP'si (hostname yerine IP kullan)
+                        def containerIp = sh(
+                            script: "docker inspect smarthotel-test-${env.BUILD_NUMBER} --format='{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}'",
+                            returnStdout: true
+                        ).trim()
+                        def testUrl = "http://${containerIp}:8080"
                         
                         // Selenium testlerini çalıştır
                         sh """
