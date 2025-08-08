@@ -66,8 +66,28 @@ pipeline {
                             --network selenium-tests_selenium-network \\
                             ${DOCKER_IMAGE_NAME}:${env.BUILD_NUMBER}
                         
-                        # Container'ın hazır olmasını bekle
-                        sleep 15
+                        # Container'ın başlatılmasını bekle
+                        echo "Waiting for container to start..."
+                        sleep 10
+                        
+                        # Container durumunu kontrol et
+                        echo "Checking container status..."
+                        docker ps | grep smarthotel-test-${env.BUILD_NUMBER} || true
+                        
+                        # Container network bilgilerini kontrol et
+                        echo "Checking container network..."
+                        docker inspect smarthotel-test-${env.BUILD_NUMBER} --format='{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' || true
+                        
+                        # Container'ın hazır olmasını bekle ve health check
+                        echo "Waiting for application to be ready..."
+                        for i in {1..12}; do
+                            if docker exec smarthotel-test-${env.BUILD_NUMBER} curl -f http://localhost:80/ >/dev/null 2>&1; then
+                                echo "✓ Application is ready after \$((i * 5)) seconds"
+                                break
+                            fi
+                            echo "⏳ Waiting for app readiness... \$((i * 5))s"
+                            sleep 5
+                        done
                         """
                         
                         // Test URL'i container IP'si
@@ -80,12 +100,13 @@ pipeline {
                         . test-venv/bin/activate
                         pip install -r requirements.txt
                         
-                        # Test çalıştır
+                        # Test çalıştır - timeout artırıldı ve debug eklendi
                         python run_tests.py \\
                             --app-url ${testUrl} \\
                             --selenium-hub http://localhost:4444/wd/hub \\
                             --browser chrome \\
                             --headless \\
+                            --app-timeout 120 \\
                             --pytest-args "--html=reports/selenium-report.html --self-contained-html --junitxml=reports/selenium-junit.xml -v"
                         """
                         
