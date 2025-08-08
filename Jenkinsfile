@@ -36,6 +36,9 @@ pipeline {
                     withCredentials([usernamePassword(credentialsId: env.DOCKER_REGISTRY_CREDENTIALS_ID, passwordVariable: 'DOCKER_PASSWORD', usernameVariable: 'DOCKER_USERNAME')]) {
                         sh "echo ${DOCKER_PASSWORD} | docker login -u ${DOCKER_USERNAME} --password-stdin"
                         sh "docker push ${DOCKER_IMAGE_NAME}:${env.BUILD_NUMBER}"
+                        // Ayrica 'latest' etiketiyle pushla
+                        sh "docker tag ${DOCKER_IMAGE_NAME}:${env.BUILD_NUMBER} ${DOCKER_IMAGE_NAME}:latest"
+                        sh "docker push ${DOCKER_IMAGE_NAME}:latest"
                         sh "docker logout"
                     }
                 }
@@ -65,7 +68,8 @@ spec:
     spec:
       containers:
       - name: smarthotel-website
-        image: ${DOCKER_IMAGE_NAME}:${env.BUILD_NUMBER}
+        image: ${DOCKER_IMAGE_NAME}:latest
+        imagePullPolicy: Always
         ports:
         - containerPort: 80
 """
